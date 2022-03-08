@@ -50,6 +50,32 @@ static long long fib_sequence(long long k)
     return b;
 }
 
+static long long fib_doubling(long long n)
+{
+    if (n == 0)
+        return 0;
+    long long t0 = 1;  // F(n)
+    long long t1 = 1;  // F(n + 1)
+    long long t3 = 1;  // F(2n)
+    long long t4;      // F(2n+1)
+    long long i = 1;
+    while (i < n) {
+        if ((i << 1) <= n) {
+            t4 = t1 * t1 + t0 * t0;
+            t3 = t0 * (2 * t1 - t0);
+            t0 = t3;
+            t1 = t4;
+            i = i << 1;
+        } else {
+            t0 = t3;
+            t3 = t4;
+            t4 = t0 + t4;
+            i++;
+        }
+    }
+    return t3;
+}
+
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -65,14 +91,20 @@ static int fib_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+
+
 /* calculate the fibonacci number at given offset */
 static ssize_t fib_read(struct file *file,
                         char *buf,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    ssize_t original_result = fib_sequence(*offset);
+    ssize_t doubling_result = fib_doubling(*offset);
+    printk("%lld %lld", original_result, doubling_result);
+    return original_result;
 }
+
 
 /* write operation is skipped */
 static ssize_t fib_write(struct file *file,
