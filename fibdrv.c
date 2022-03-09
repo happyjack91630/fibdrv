@@ -50,10 +50,10 @@ static long long fib_sequence(long long k)
     return b;
 }
 
-static long long fib_doubling(long long n)
+static void fib_doubling(long long n)
 {
     if (n == 0)
-        return 0;
+        return;
     long long t0 = 1;  // F(n)
     long long t1 = 1;  // F(n + 1)
     long long t3 = 1;  // F(2n)
@@ -73,7 +73,6 @@ static long long fib_doubling(long long n)
             i++;
         }
     }
-    return t3;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -99,9 +98,15 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
+    ktime_t kt_o = ktime_get();
     ssize_t original_result = fib_sequence(*offset);
-    ssize_t doubling_result = fib_doubling(*offset);
-    printk("%lld %lld", original_result, doubling_result);
+    kt_o = ktime_sub(ktime_get(), kt_o);
+
+    ktime_t kt_d = ktime_get();
+    fib_doubling(*offset);
+    kt_d = ktime_sub(ktime_get(), kt_d);
+
+    printk("%lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
     return original_result;
 }
 
