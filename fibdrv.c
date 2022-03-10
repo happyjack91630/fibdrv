@@ -27,19 +27,23 @@ static DEFINE_MUTEX(fib_mutex);
 ktime_t kt_o, kt_d;
 
 
-static void fib_sequence(long long k)
+static long long fib_sequence(long long k)
 {
-    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
-    // long long f[k + 2];
+    if (k < 2)
+        return 0;
 
-    // f[0] = 0;
-    // f[1] = 1;
+    long long a = 0, b = 1;
+    for (int i = 2; i <= k; i++) {
+        long long c = a + b;
+        a = b;
+        b = c;
+    }
 
-    // for (int i = 2; i <= k; i++) {
-    //     f[i] = f[i - 1] + f[i - 2];
-    // }
+    return b;
+}
 
-    // return f[k];
+static void fib_sequence_no_return(long long k)
+{
     if (k < 2)
         return;
 
@@ -53,7 +57,7 @@ static void fib_sequence(long long k)
     return;
 }
 
-static void fib_doubling(long long n)
+static void fib_doubling_no_return(long long n)
 {
     if (n == 0)
         return;
@@ -103,15 +107,15 @@ static ssize_t fib_read(struct file *file,
                         loff_t *offset)
 {
     kt_o = ktime_get();
-    ssize_t original_result = fib_sequence(*offset);
+    ssize_t sequence_result = fib_sequence(*offset);
     kt_o = ktime_sub(ktime_get(), kt_o);
 
     kt_d = ktime_get();
-    fib_doubling(*offset);
+    fib_doubling_no_return(*offset);
     kt_d = ktime_sub(ktime_get(), kt_d);
 
     // printk("record time %lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
-    return original_result;
+    return sequence_result;
 }
 
 
@@ -127,13 +131,13 @@ static ssize_t fib_write(struct file *file,
     switch (mode) {
     case 0:
         kt = ktime_get();
-        fib_sequence(*offset);
+        fib_sequence_no_return(*offset);
         kt = ktime_sub(ktime_get(), kt);
         printk("%lld", kt);
         break;
     case 1:
         kt = ktime_get();
-        fib_doubling(*offset);
+        fib_doubling_no_return(*offset);
         kt = ktime_sub(ktime_get(), kt);
         printk("%lld", kt);
         break;
