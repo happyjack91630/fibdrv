@@ -25,6 +25,7 @@ static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
 ktime_t kt;
+ssize_t sequence_result, doubling_result;
 
 static long long fib_time_proxy(long long k, long long (*func_ptr)(long long))
 {
@@ -99,7 +100,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    ssize_t sequence_result = fib_time_proxy(*offset, fib_sequence);
+    sequence_result = fib_time_proxy(*offset, fib_sequence);
     // printk("record time %lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
     return sequence_result;
 }
