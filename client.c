@@ -10,9 +10,6 @@
 int main()
 {
     long long sz;
-    // size_t mode_seq = 0;
-    // size_t mode_double = 1;
-
     char buf[1];
     char write_buf[] = "testing writing";
     int offset = 100; /* TODO: try test something bigger than the limit */
