@@ -51,30 +51,34 @@ static long long fib_sequence(long long k)
     return b;
 }
 
-static long long fib_doubling(long long n)
+static long long fib_doubling(long long k)
 {
-    if (n == 0)
-        return 0;
-    long long t0 = 1;  // F(n)
-    long long t1 = 1;  // F(n + 1)
-    long long t3 = 1;  // F(2n)
-    long long t4;      // F(2n+1)
-    long long i = 1;
-    while (i < n) {
-        if ((i << 1) <= n) {
-            t4 = t1 * t1 + t0 * t0;
-            t3 = t0 * (2 * t1 - t0);
-            t0 = t3;
-            t1 = t4;
-            i = i << 1;
-        } else {
-            t0 = t3;
-            t3 = t4;
-            t4 = t0 + t4;
-            i++;
+    unsigned int h = 0;
+    for (unsigned int i = k; i; ++h, i >>= 1)
+        ;
+
+    long long a = 0;  // F(0) = 0
+    long long b = 1;  // F(1) = 1
+    // There is only one `1` in the bits of `mask`. The `1`'s position is same
+    // as the highest bit of n(mask = 2^(h-1) at first), and it will be shifted
+    // right iteratively to do `AND` operation with `n` to check `n_j` is odd or
+    // even, where n_j is defined below.
+    for (unsigned int mask = 1 << (h - 1); mask; mask >>= 1) {  // Run h times!
+        // Let j = h-i (looping from i = 1 to i = h), n_j = floor(n / 2^j) = n
+        // >> j (n_j = n when j = 0), k = floor(n_j / 2), then a = F(k), b =
+        // F(k+1) now.
+        long long c = a * (2 * b - a);  // F(2k) = F(k) * [ 2 * F(k+1) – F(k) ]
+        long long d = a * a + b * b;    // F(2k+1) = F(k)^2 + F(k+1)^2
+
+        if (mask & k) {  // n_j is odd: k = (n_j-1)/2 => n_j = 2k + 1
+            a = d;       //   F(n_j) = F(2k + 1)
+            b = c + d;   //   F(n_j + 1) = F(2k + 2) = F(2k) + F(2k + 1)
+        } else {         // n_j is even: k = n_j/2 => n_j = 2k
+            a = c;       //   F(n_j) = F(2k)
+            b = d;       //   F(n_j + 1) = F(2k + 1)
         }
     }
-    return t3;
+    return a;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -100,7 +104,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    sequence_result = fib_time_proxy(*offset, fib_sequence);
+    sequence_result = fib_time_proxy(*offset, fib_doubling);
     // printk("record time %lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
     return sequence_result;
 }
@@ -121,6 +125,8 @@ static ssize_t fib_write(struct file *file,
         doubling_result = fib_time_proxy(*offset, fib_doubling);
         printk("%lld", kt);
         break;
+    case 2:
+        return 1;
     }
     return (ssize_t) ktime_to_ns(kt);
 }

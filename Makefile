@@ -22,6 +22,7 @@ clean:
 	rm -f time_result
 	rm -f plot_statistic.png
 	rm -f client_kernel_user
+	rm -f client_double_seq
 load:
 	sudo insmod $(TARGET_MODULE).ko
 unload:
@@ -34,6 +35,9 @@ client_plot: client_plot.c
 	$(CC) -o $@ $^ -lm
 
 client_kernel_user: client_kernel_user.c
+	$(CC) -o $@ $^ -lm
+
+client_double_seq: client_double_seq.c
 	$(CC) -o $@ $^ -lm
 
 
@@ -57,6 +61,15 @@ plot_kernel_user: all
 	$(MAKE) client_kernel_user
 	rm -f time_result
 	sudo taskset -c $(CPUID) ./client_kernel_user
+	gnuplot scripts/plot_result.gp
+	$(MAKE) unload
+
+plot_seq_doubling: all
+	$(MAKE) unload
+	$(MAKE) load
+	$(MAKE) client_double_seq
+	rm -f time_result
+	sudo taskset -c $(CPUID) ./client_double_seq
 	gnuplot scripts/plot_result.gp
 	$(MAKE) unload
 

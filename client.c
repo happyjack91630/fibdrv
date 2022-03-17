@@ -14,7 +14,7 @@ int main()
     // size_t mode_double = 1;
 
     char buf[1];
-    // char write_buf[] = "testing writing";
+    char write_buf[] = "testing writing";
     int offset = 100; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
@@ -23,9 +23,10 @@ int main()
         exit(1);
     }
 
-    // for (int i = 0; i <= offset; i++) {
-    //     sz = write(fd, write_buf, strlen(write_buf));
-    // }
+    for (int i = 0; i <= offset; i++) {
+        sz = write(fd, write_buf, 2);
+        printf("Writing to " FIB_DEV ", returned the sequence %lld\n", sz);
+    }
 
     for (int i = 0; i <= offset; i++) {
         lseek(fd, i, SEEK_SET);
