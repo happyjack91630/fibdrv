@@ -24,7 +24,15 @@ static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
-ktime_t kt_o, kt_d;
+ktime_t kt;
+
+static long long fib_time_proxy(long long k, long long (*func_ptr)(long long))
+{
+    kt = ktime_get();
+    long long result = func_ptr(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return result;
+}
 
 
 static long long fib_sequence(long long k)
@@ -42,25 +50,10 @@ static long long fib_sequence(long long k)
     return b;
 }
 
-static void fib_sequence_no_return(long long k)
-{
-    if (k < 2)
-        return;
-
-    long long a = 0, b = 1;
-    for (int i = 2; i <= k; i++) {
-        long long c = a + b;
-        a = b;
-        b = c;
-    }
-
-    return;
-}
-
-static void fib_doubling_no_return(long long n)
+static long long fib_doubling(long long n)
 {
     if (n == 0)
-        return;
+        return 0;
     long long t0 = 1;  // F(n)
     long long t1 = 1;  // F(n + 1)
     long long t3 = 1;  // F(2n)
@@ -80,7 +73,7 @@ static void fib_doubling_no_return(long long n)
             i++;
         }
     }
-    return;
+    return t3;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -106,14 +99,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    kt_o = ktime_get();
-    ssize_t sequence_result = fib_sequence(*offset);
-    kt_o = ktime_sub(ktime_get(), kt_o);
-
-    kt_d = ktime_get();
-    fib_doubling_no_return(*offset);
-    kt_d = ktime_sub(ktime_get(), kt_d);
-
+    ssize_t sequence_result = fib_time_proxy(*offset, fib_sequence);
     // printk("record time %lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
     return sequence_result;
 }
@@ -125,20 +111,13 @@ static ssize_t fib_write(struct file *file,
                          size_t mode,
                          loff_t *offset)
 {
-    // when user space pass mode = 0 do fib_sequence , pass mode = 1 do
-    // fib_doubling
-    ktime_t kt;
     switch (mode) {
     case 0:
-        kt = ktime_get();
-        fib_sequence_no_return(*offset);
-        kt = ktime_sub(ktime_get(), kt);
+        sequence_result = fib_time_proxy(*offset, fib_sequence);
         printk("%lld", kt);
         break;
     case 1:
-        kt = ktime_get();
-        fib_doubling_no_return(*offset);
-        kt = ktime_sub(ktime_get(), kt);
+        doubling_result = fib_time_proxy(*offset, fib_doubling);
         printk("%lld", kt);
         break;
     }

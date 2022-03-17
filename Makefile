@@ -6,7 +6,7 @@ ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
-
+CPUID =  7
 GIT_HOOKS := .git/hooks/applied
 
 all: $(GIT_HOOKS) client
@@ -19,6 +19,9 @@ $(GIT_HOOKS):
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	$(RM) client out
+	rm -f time_result
+	rm -f plot_statistic.png
+	rm -f client_kernel_user
 load:
 	sudo insmod $(TARGET_MODULE).ko
 unload:
@@ -26,6 +29,12 @@ unload:
 
 client: client.c
 	$(CC) -o $@ $^
+
+client_plot: client_plot.c
+	$(CC) -o $@ $^ -lm
+
+client_kernel_user: client_kernel_user.c
+	$(CC) -o $@ $^ -lm
 
 
 PRINTF = env printf
@@ -36,8 +45,18 @@ pass = $(PRINTF) "$(PASS_COLOR)$1 Passed [-]$(NO_COLOR)\n"
 check: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./client > out
+#	sudo ./client > out
+	sudo taskset -c $(CPUID) ./client > out
 	$(MAKE) unload
-#	@diff -u out scripts/expected.txt && $(call pass)
-#	@scripts/verify.py
+	@diff -u out scripts/expected.txt && $(call pass)
+	@scripts/verify.py
+
+plot_kernel_user: all
+	$(MAKE) unload
+	$(MAKE) load
+	$(MAKE) client_kernel_user
+	rm -f time_result
+	sudo taskset -c $(CPUID) ./client_kernel_user
+	gnuplot scripts/plot_result.gp
+	$(MAKE) unload
 
