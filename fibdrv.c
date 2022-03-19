@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/string.h>
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
@@ -17,7 +18,8 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 500
+#define max_space 300
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -27,6 +29,83 @@ static DEFINE_MUTEX(fib_mutex);
 ktime_t kt;
 ssize_t sequence_result, doubling_result;
 
+static void sum(char *a, char *b, char *c)
+{
+    int last_pos = max_space - 1;
+    int carry = 0;
+    int i = max_space - 1, j = max_space - 1;
+    for (; j >= 0; i--, j--) {
+        int sum_v;
+        sum_v = (a[i] - '0') + (b[j] - '0') + carry;
+        carry = sum_v / 10;
+        sum_v %= 10;
+        c[last_pos--] = sum_v + '0';
+    }
+}
+
+static void int2char(long long a, long long b, char *a_s, char *b_s)
+{
+    int reminder;
+    int last_pos_a = max_space - 1;
+    int last_pos_b = max_space - 1;
+    while (a > 0) {
+        reminder = a % 10;
+        a_s[last_pos_a--] = reminder + '0';
+        a = a / 10;
+    }
+    while (b > 0) {
+        reminder = b % 10;
+        b_s[last_pos_b--] = reminder + '0';
+        b = b / 10;
+    }
+}
+
+static void fib_big_num(int n, char *r)
+{
+    if (n == 0) {
+        *r = n + '0';
+        r++;
+        *r = '\0';
+        return;
+    }
+    if (n == 1 || n == 2) {
+        *r = '1';
+        r++;
+        *r = '\0';
+        return;
+    }
+
+    long long a = 1;
+    long long b = 1;
+    char a_s[max_space];
+    char b_s[max_space];
+    char ans[max_space];
+    for (int i = 0; i < max_space; i++) {
+        a_s[i] = '0';
+        b_s[i] = '0';
+        ans[i] = '0';
+    }
+    int2char(a, b, a_s, b_s);
+    for (int i = 3; i <= n; i++) {
+        sum(a_s, b_s, ans);
+        for (int j = 0; j < max_space; j++) {
+            a_s[j] = b_s[j];
+            b_s[j] = ans[j];
+        }
+    }
+
+    int flag = 0;
+    for (int i = 0; i < max_space; i++) {
+        if (ans[i] == '0' && flag == 0) {
+            continue;
+        } else {
+            flag = 1;
+            *r++ = ans[i];
+        }
+    }
+    *r = '\0';
+}
+
 static long long fib_time_proxy(long long k, long long (*func_ptr)(long long))
 {
     kt = ktime_get();
@@ -34,7 +113,6 @@ static long long fib_time_proxy(long long k, long long (*func_ptr)(long long))
     kt = ktime_sub(ktime_get(), kt);
     return result;
 }
-
 
 static long long fib_sequence(long long k)
 {
@@ -104,9 +182,12 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    sequence_result = fib_time_proxy(*offset, fib_doubling);
-    // printk("record time %lld %lld", ktime_to_ns(kt_o), ktime_to_ns(kt_d));
-    return sequence_result;
+    printk("===============%lld============", *offset);
+    char result[max_space];
+    fib_big_num(*offset, result);
+    size_t len = strlen(result) + 1;
+    size_t left = copy_to_user(buf, result, len);
+    return left;
 }
 
 

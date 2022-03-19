@@ -26,3 +26,4 @@ for i in dics:
         print('input: %s' %(fib))
         print('expected: %s' %(expect[i[0]]))
         exit()
+print("success")

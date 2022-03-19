@@ -52,7 +52,6 @@ check: all
 #	sudo ./client > out
 	sudo taskset -c $(CPUID) ./client > out
 	$(MAKE) unload
-	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
 
 plot_kernel_user: all
